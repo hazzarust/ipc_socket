@@ -1,7 +1,7 @@
-use tokio::net::UnixStream;
+use tokio::sync::mpsc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use std::io;
-
+use tokio::net::UnixStream;
 
 pub struct Handler {
     pub reader: BufReader<tokio::io::ReadHalf<UnixStream>>,
@@ -12,13 +12,15 @@ impl Handler {
     pub fn new(stream: UnixStream) -> Self {
         let (reader, writer) = tokio::io::split(stream);
         Self {
-            // Allows us to read data from the reader more efficiently (essentially the socket)
             reader: BufReader::new(reader),
             writer,
         }
     }
 
-    pub async fn listen_for_messages(&mut self) -> io::Result<()> {
+    pub async fn listen_for_messages(
+        &mut self,
+        sender: mpsc::Sender<String>, // Send events to main
+    ) -> io::Result<()> {
         let mut buffer = String::new();
 
         loop {
@@ -29,29 +31,18 @@ impl Handler {
                 println!("Connection closed by client");
                 break;
             }
-            
-            println!("Received: {}", buffer.trim());
 
-            if buffer.trim() == "hello from python"{
-                self.send_message("Hello from Rust").await?;
-            }
-            
-            if buffer.trim() == "hello from china"{
-                self.send_message("Hello from Rust").await?;
-            }
-
+            let message = buffer.trim().to_string();
+            println!("Received: {}", message);
+            sender.send(message).await.unwrap();
+                
         }
 
         Ok(())
     }
 
     pub async fn send_message(&mut self, message: &str) -> io::Result<()> {
-        // Write a message to the underlying stream represented by self.writer
-        // self.writer is a mutable reference to a UnixListener that has been split 
-        // Convert into bytes as most I/O operations deal with bytes instead of strings
-        // write.all() means to only return once the whole message has been sent
         self.writer.write_all(message.as_bytes()).await?;
-        // Flush forces any buffered data waiting to be transmitted out 
         self.writer.flush().await?;
         println!("Sent: {}", message);
 

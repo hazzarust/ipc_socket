@@ -4,10 +4,17 @@ use tokio::process::Command;
 use tokio::net::{UnixListener, UnixStream};
 use std::path::Path;
 
-pub async fn spin_child_process(python_script_path: &Path, socket_path: &str) -> Handler{
+pub async fn spin_child_process(python_script_path: &Path) -> Handler{
+
+    let socket_path = "tmp/socket.sock";
+
+    if std::path::Path::new(&socket_path).exists() {
+        std::fs::remove_file(socket_path).expect("Failed to remove file");
+    }
 
     let mut child = Command::new("python3")
         .arg(python_script_path)  // Provide the path to the Python script
+        .env("SOCKET", socket_path)
         .stdout(std::process::Stdio::piped()) // Pipe the output so we can capture it
         .stderr(std::process::Stdio::piped()) // Capture any error output
         .spawn()  // Start the child process

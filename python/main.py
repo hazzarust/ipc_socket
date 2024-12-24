@@ -6,7 +6,7 @@ def main():
     # Path to the Unix socket file
     print("Starting Python script...")
     
-    socket_path = 'tmp/socket.sock'
+    socket_path = os.getenv('SOCKET')
 
     if os.path.exists(socket_path):
         print(f"Socket file {socket_path} found. Attempting to connect...")
